@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>ToDo API Client Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" rel="stylesheet">
+<script src="http://ajax.aspnetcdn.com/ajax/jquery/jquery-1.9.0.js"></script>
+<script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
+<script src="http://ajax.aspnetcdn.com/ajax/knockout/knockout-2.2.1.js"></script>
+</head>
+<body>
+  <div class="navbar">
+    <div class="navbar-inner">
+      <a class="brand" href="#">Arize Chickun</a>
+    </div>
+  </div>
+  <div id="main" class="container">
+    <div id="my_account">
+      <h1>My Account</h1>
+      <table class="table table-striped">
+        <thead>
+          <th width="20%">BTC</th>
+          <th width="20%">LTC</th>
+          <th width="20%">USD</th>
+          <th width="10%">Open Orders</th>
+          <th width="10%">Server Time</th>
+          <th width="20%">Transaction Count</th>
+        </thead> 
+        <tbody>
+          <tr>
+            <td><span id="btc_holdings" data-bind="text: btc"></span></td>
+            <td><span id="ltc_holdings" data-bind="text: ltc"></span></td>
+            <td><span data-bind="text: usd"></span></td>
+            <td><span data-bind="text: open_orders"></span></td>
+            <td><span data-bind="text: server_time"></span></td>
+            <td><span data-bind="text: transaction_count"></span></td>
+          </tr>
+        </tbody>
+      </table>
+      <table class="table table-striped">
+        <thead>
+          <th width="20%">BTC</th>
+          <th width="20%">LTC</th>
+          <th width="20%">USD</th>
+          <th></th>
+          <th></th>
+        </thead> 
+        <tbody>
+          <tr>
+            <td><span data-bind="text: port_value_btc"></span></td>
+            <td><span data-bind="text: port_value_ltc"></span></td>
+            <td><span data-bind="text: port_value_usd"></span></td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="ticker">
+      <h1>Ticker</h1>
+      <table class="table table-striped">
+        <thead>
+          <th></th>
+          <th>Last</th>
+          <th>Bid/Ask</th>
+          <th>Low/Avg/High</th>
+          <th>Volume</th> 
+        </thead>
+        <tbody>
+          <!-- ko foreach:pairs -->
+          <tr>
+            <td width="20%"><span data-bind="text: pair_title"></span></td>
+            <td width="20%"><span data-bind="text: last"></span></td>
+            <td width="20%"><span data-bind="text: bid_ask"></span></td>
+            <td width="20%"><span data-bind="text: low_avg_high"></span></td>
+            <td width="20%"><span data-bind="text: volume"></span></td>
+          </tr>
+          <!-- /ko -->
+        </tbody>
+      </table>
+    </div>
+   
+    <script type="text/javascript">
+
+    var postbox = new ko.subscribable();
+    var btc_usd, ltc_btc, ltc_usd;
+    
+    postbox.subscribe(function(newValue) {
+      btc_usd = parseFloat(newValue).toFixed(5)
+      }, null, "btc_usd"
+    );
+
+    postbox.subscribe(function(newValue) {
+      ltc_btc = parseFloat(newValue).toFixed(5)
+      }, null, "ltc_btc"
+    );
+
+    postbox.subscribe(function(newValue) {
+      ltc_usd = parseFloat(newValue).toFixed(5)
+      }, null, "ltc_usd"
+    );
+
+    ko.subscribable.fn.publishOn = function(topic) {
+      this.subscribe(function(newValue) {
+        postbox.notifySubscribers(newValue, topic);
+      });
+
+      return this; //support chaining
+    }
+
+    ko.subscribable.fn.subscribeTo = function(topic) {
+      postbox.subscribe(this, null, topic);
+
+      return this;  //support chaining
+    };
+
+    function AccountInfoViewModel() {
+      var self = this;
+      self.accountInfoURI = 'http://localhost:3000/info'
+      self.btc = ko.observable();
+      self.ltc = ko.observable();
+      self.usd = ko.observable();
+      self.open_orders = ko.observable();
+      self.server_time = ko.observable();
+      self.transaction_count = ko.observable();
+      self.port_value_usd = ko.observable();
+      self.port_value_btc = ko.observable();
+      self.port_value_ltc = ko.observable();
+   
+      self.ajax = function(uri, method, data) {
+            var request = {
+                url: uri,
+                type: method,
+                contentType: "application/json",
+                accepts: "application/json",
+                cache: false,
+                dataType: 'json',
+                data: JSON.stringify(data),
+                error: function(jqXHR) {
+                    console.log("ajax error " + jqXHR.status);
+                }
+            };
+            return $.ajax(request);
+        }
+
+      self.calc_port_value_usd = function() {
+        val = (parseFloat(self.btc()) * btc_usd) +
+              (parseFloat(self.ltc()) * ltc_usd) +
+              parseFloat(self.usd())
+        return parseFloat(val).toFixed(2)
+      }
+
+      self.calc_port_value_btc = function() {
+        val = (parseFloat(self.usd()) / btc_usd ) +
+              (parseFloat(self.ltc()) * ltc_btc) +
+              parseFloat(self.btc())
+        return parseFloat(val).toFixed(2)
+      }
+
+      self.calc_port_value_ltc = function() {
+        val = (parseFloat(self.usd()) / ltc_usd ) +
+              (parseFloat(self.btc()) / ltc_btc) +
+              parseFloat(self.ltc())
+        return parseFloat(val).toFixed(2)
+      }
+
+      self.updateAccountInfo = function() {
+        self.ajax(self.accountInfoURI, 'GET').done(function(data) {
+          self.btc(data.return.funds.btc);
+          self.ltc(data.return.funds.ltc);
+          self.usd(data.return.funds.usd);
+          self.open_orders(data.return.open_orders);
+          self.server_time(data.return.server_time);
+          self.transaction_count(data.return.transaction_count);
+          self.port_value_usd(self.calc_port_value_usd());
+          self.port_value_btc(self.calc_port_value_btc());
+          self.port_value_ltc(self.calc_port_value_ltc());
+        });
+      } 
+    }
+  
+    function pairViewModel(pair_title, pair_key) {
+      var self = this;
+      
+      self.tickerURI    = 'http://localhost:3000/info/ticker/' + pair_key
+      self.pair_title   = ko.observable(pair_title)
+      self.pair_key     = ko.observable(pair_key)
+      self.last         = ko.observable().publishOn(pair_key)
+      self.bid_ask      = ko.observable()
+      self.low_avg_high = ko.observable()
+      self.volume       = ko.observable()
+
+      self.ajax = function(uri, method) {
+        var request = {
+          url: uri,
+          type: method,
+          contentType: "application/json",
+          accepts: "application/json",
+          cache: false,
+          dataType: 'json',
+          //data: JSON.stringify(data),
+          error: function(jqXHR) {
+            console.log("ajax error " + jqXHR.status);
+          }
+        };
+        return $.ajax(request);
+      }
+    
+      self.update = function() {
+        self.ajax(self.tickerURI, 'GET').done(function(data) {
+          self.last(data.ticker.last)
+          self.bid_ask(data.ticker.sell + "/" + data.ticker.buy)
+          self.low_avg_high(data.ticker.low + "/" + data.ticker.avg + "/" + data.ticker.high)
+          self.volume(data.ticker.vol + "/" + data.ticker.vol_cur)
+        });  
+      }
+
+      setInterval(self.update,2000);
+    }
+
+    function tickerViewModel() {
+      var self = this;
+      
+      self.pairs = ko.observableArray();
+     
+      self.addPair = function(pair_title, pair_key) {
+        self.pairs.push(new pairViewModel(pair_title, pair_key)); 
+      }       
+    }
+  
+    accountInfoVM = new AccountInfoViewModel();
+    tickerVM = new tickerViewModel();
+    ko.applyBindings(accountInfoVM, $('#my_account')[0]);
+    ko.applyBindings(tickerVM, $('#ticker')[0]);
+
+    tickerVM.addPair('BTC/USD','btc_usd');
+    tickerVM.addPair('LTC/BTC','ltc_btc');
+    tickerVM.addPair('LTC/USD','ltc_usd');
+    setInterval(accountInfoVM.updateAccountInfo,5000);
+    //setInterval(tickerVM.updateTicker,2000);
+  
+  </script>
+</body>
+</html>

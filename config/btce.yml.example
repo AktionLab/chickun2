@@ -1,0 +1,13 @@
+development:
+  public_url: https://btc-e.com/api/2
+  private_url: https://btc-e.com/tapi
+  key1:    
+  secret1: 
+  key2:    
+  secret2: 
+  key3:    
+  secret3: 
+  trade_key:
+  trade_secret: 
+  info_key: 
+  info_secret: 
