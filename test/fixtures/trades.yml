@@ -1,0 +1,17 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/Fixtures.html
+
+one:
+  exchange_id: 
+  currency_pair_id: 
+  datetime: 2013-11-11 16:03:12
+  type: 
+  price: 9.99
+  amount: 9.99
+
+two:
+  exchange_id: 
+  currency_pair_id: 
+  datetime: 2013-11-11 16:03:12
+  type: 
+  price: 9.99
+  amount: 9.99

@@ -1,0 +1,11 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/Fixtures.html
+
+one:
+  exchange_id: 
+  name: MyString
+  key: MyString
+
+two:
+  exchange_id: 
+  name: MyString
+  key: MyString
