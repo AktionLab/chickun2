@@ -21,7 +21,7 @@ set :server_hostname, "54.205.158.135"
 set :port, 2234
 set(:rails_env) { stage }
 
-set :symlinks, %w(config/database.yml config/unicorn.rb data)
+set :symlinks, %w(config/database.yml config/unicorn.rb data config/btce.yml)
 
 role :web, server_hostname
 role :app, server_hostname
