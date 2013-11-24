@@ -10,12 +10,13 @@ require 'bigdecimal/util'
 namespace :data do
   desc "Fetch public trade data for long term storage"
   task trade_history: :environment do
-    client = Client::Btce.new BTCE_CONFIG['public_url']
+    client = Client::Btce.new BTCE_CONFIG['public_url'], BTCE_CONFIG['private_url']
     exchange = Exchange.where(key: 'btce').first
     pairs = exchange.currency_pairs
     while true do
       pairs.each do |pair|
         data = JSON.parse(client.pair_trade_history(pair.key), symbolize_names: true)
+        puts data
         data.each do |trade|
           Trade.create(
             exchange:      exchange,

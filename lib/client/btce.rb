@@ -23,7 +23,7 @@ module Client
     end
 
     def pair_trade_history(pair)
-      url = URI.parse("#{@private_url}/#{pair}/trades")
+      url = URI.parse("#{@public_url}/#{pair}/trades")
       req = Net::HTTP::Get.new(url.path)
       begin
         res = Net::HTTP.start(url.host, url.port, use_ssl: true) {|http|
