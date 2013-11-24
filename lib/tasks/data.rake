@@ -15,7 +15,12 @@ namespace :data do
     pairs = exchange.currency_pairs
     while true do
       pairs.each do |pair|
-        data = JSON.parse(client.pair_trade_history(pair.key), symbolize_names: true)
+        begin
+          data = JSON.parse(client.pair_trade_history(pair.key), symbolize_names: true)
+        rescue RuntimeError => e
+          puts e.message
+          next
+        end
         new_trade_count = 0
         data.each do |trade|
           if !Trade.where(trade_id: trade[:tid]).exists?
@@ -31,7 +36,6 @@ namespace :data do
             new_trade_count += 1
           end
         end
-        puts "#{pair.key}: #{new_trade_count} new trades since last poll"
       end 
       puts "\n"
       sleep 10
