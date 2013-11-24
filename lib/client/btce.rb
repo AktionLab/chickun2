@@ -13,27 +13,22 @@ module Client
       @redis.set("btce_nonce", Time.now.to_i + 3000000).to_i
     end
 
+    def request(pair, operation)
+      uri = URI.parse "#{@public_url}/#{pair}/#{operation}"
+      http = Net::HTTP.new uri.host, uri.port
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      request = Net::HTTP::Get.new uri.request_uri
+      response = http.request request
+      JSON.parse(response.body, symbolize_keys: true)
+    end
+
     def pair_ticker(pair)
-      url = URI.parse("#{@public_url}/#{pair}/ticker")
-      req = Net::HTTP::Get.new(url.path)
-      res = Net::HTTP.start(url.host, url.port, use_ssl: true) {|http|
-        http.request(req)
-      }
-      res.body   
+      request(pair, 'ticker')
     end
 
     def pair_trade_history(pair)
-      url = URI.parse("#{@public_url}/#{pair}/trades")
-      req = Net::HTTP::Get.new(url.path)
-      begin
-        res = Net::HTTP.start(url.host, url.port, use_ssl: true) {|http|
-          http.request(req)
-        }
-      rescue Exception => e
-        puts e.inspect
-        nil
-      end
-      res.body   
+      request(pair, 'trades')
     end
 
     def pub_api_request(type, pairs)
