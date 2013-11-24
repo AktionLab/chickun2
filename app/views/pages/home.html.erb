@@ -1,14 +1,3 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>ToDo API Client Demo</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" rel="stylesheet">
-<script src="http://ajax.aspnetcdn.com/ajax/jquery/jquery-1.9.0.js"></script>
-<script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
-<script src="http://ajax.aspnetcdn.com/ajax/knockout/knockout-2.2.1.js"></script>
-</head>
-<body>
   <div class="navbar">
     <div class="navbar-inner">
       <a class="brand" href="#">Arize Chickun</a>
@@ -57,6 +46,30 @@
       </table>
     </div>
 
+    <div id="open_orders">
+      <h1>Open Orders</h1>
+      <table class="table table-striped">
+        <thead>
+          <th>Order ID</th>
+          <th>Pair</th>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>Rate</th>
+        </thead>
+        <tbody>
+          <!-- ko foreach:orders -->
+          <tr>
+            <td><span data-bind="text: id"></span></td>
+            <td><span data-bind="text: pair"></span></td>
+            <td><span data-bind="text: type"></span></td>
+            <td><span data-bind="text: amount"></span></td>
+            <td><span data-bind="text: rate"></span></td> 
+          </tr>
+          <!-- /ko -->
+        </tbody>
+      </table>
+    </div>
+
     <div id="ticker">
       <h1>Ticker</h1>
       <table class="table table-striped">
@@ -79,6 +92,10 @@
           <!-- /ko -->
         </tbody>
       </table>
+    </div>
+
+    <div id="charts">
+      <div id="chart" height="450" width="600"></div>
     </div>
    
     <script type="text/javascript">
@@ -216,7 +233,90 @@
         });  
       }
 
-      setInterval(self.update,2000);
+      setInterval(self.update,10000);
+    }
+
+    function OrderViewModel(id, pair, type, amount, rate) {
+      var self    = this;
+      self.id     = id;
+      self.pair   = pair;
+      self.type   = type;
+      self.amount = ko.observable(amount);
+      self.rate   = rate;
+    }
+
+    function OpenOrdersViewModel() {
+      var self = this;
+      self.ordersURI = 'http://localhost:3000/info/open_orders'
+      self.fetched_order_ids = ko.observableArray()
+      self.stored_order_ids = ko.observableArray();
+      self.orders = ko.observableArray();
+
+      self.ajax = function(uri, method) {
+        var request = {
+          url: uri,
+          type: method,
+          contentType: "application/json",
+          accepts: "application/json",
+          cache: false,
+          dataType: 'json',
+          //data: JSON.stringify(data),
+          error: function(jqXHR) {
+            console.log("ajax error " + jqXHR.status);
+          }
+        };
+        return $.ajax(request);
+      }
+  
+      self.order_by_order_id = function(order_id) {
+        order_index = -1
+        $.each(self.orders(), function(i,order) {
+          if (order.id == order_id) {
+            order_index = i
+          }
+        })
+        return self.orders()[order_index]
+      }
+ 
+      self.order_exists = function(order_id) {
+        if (self.stored_order_ids.indexOf(order_id) < 0) {
+          return false
+        }
+        return self.order_by_order_id(order_id)
+      }
+ 
+      self.update = function() {
+        self.ajax(self.ordersURI, 'GET').done(function(data) {
+          if (data === undefined) { return }
+          self.fetched_order_ids.removeAll()
+          if (data.error == 'no orders') {
+            self.orders.removeAll()
+            return
+          }
+          $.each(data.return, function(key, fetched_order) {
+            self.fetched_order_ids.push(key)
+            if (stored_order = self.order_exists(key)) {
+              stored_order.amount(fetched_order.amount)
+            }
+            else
+            {
+              self.stored_order_ids.push(key)
+              self.orders.push(new OrderViewModel(
+                key, fetched_order.pair, fetched_order.type, fetched_order.amount, fetched_order.rate
+              ));  
+            }
+          });
+          $.each(self.orders(), function(i,e) {
+            if (self.fetched_order_ids().indexOf(e.id) < 0) {
+              console.log(e.id) 
+              self.stored_order_ids.remove(e.id)
+              self.orders.remove(e)
+            }
+          });
+        });
+      }
+
+      setInterval(self.update,5000);
     }
 
     function tickerViewModel() {
@@ -228,18 +328,65 @@
         self.pairs.push(new pairViewModel(pair_title, pair_key)); 
       }       
     }
+ 
+    function ChartsViewModel() {
+      var self = this;
+      self.lineChartData = ko.observable({
+        labels: ["A","B"],
+        datasets : [
+          {
+            fillColor : "rgba(151,187,205,0.5)",
+            strokeColor : "rgba(151,187,205,1)",
+            pointColor : "rgba(151,187,205,1)",
+            pointStrokeColor : "#fff",
+            data : [1,2,3,4,5,6,7,8]
+          }
+        ]
+      });
+    
+      self.ajax = function(uri, method) {
+        var request = {
+          url: uri,
+          type: method,
+          contentType: "application/json",
+          accepts: "application/json",
+          cache: false,
+          dataType: 'json',
+          //data: JSON.stringify(data),
+          error: function(jqXHR) {
+            console.log("ajax error " + jqXHR.status);
+          }
+        };
+        return $.ajax(request);
+      }
+
+      self.initLine = function() {
+        var options = {
+          animation : false,
+          scaleOverride : true,
+          scaleSteps : 10,//Number - The number of steps in a hard coded scale
+          scaleStepWidth : 10,//Number - The value jump in the hard coded scale				
+          scaleStartValue : 10//Number - The scale starting value
+        };
+        
+        var ctx = $("#canvas").get(0).getContext("2d");
+        var myLine = new Chart(ctx).Line( chartVM.lineChartData(), options );
+      } 
+    }
+
+    var tv = 2000;
   
     accountInfoVM = new AccountInfoViewModel();
     tickerVM = new tickerViewModel();
+    ordersVM = new OpenOrdersViewModel();
+
     ko.applyBindings(accountInfoVM, $('#my_account')[0]);
     ko.applyBindings(tickerVM, $('#ticker')[0]);
-
+    ko.applyBindings(ordersVM, $('#open_orders')[0]);
     tickerVM.addPair('BTC/USD','btc_usd');
     tickerVM.addPair('LTC/BTC','ltc_btc');
     tickerVM.addPair('LTC/USD','ltc_usd');
-    setInterval(accountInfoVM.updateAccountInfo,5000);
-    //setInterval(tickerVM.updateTicker,2000);
+    setInterval(accountInfoVM.updateAccountInfo,10000);
+    setInterval(tickerVM.updateTicker,2000);
   
   </script>
-</body>
-</html>

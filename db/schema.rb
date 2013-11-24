@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20131111230312) do
+ActiveRecord::Schema.define(version: 20131112005123) do
 
   create_table "currency_pairs", force: true do |t|
     t.integer  "exchange_id"
@@ -34,15 +34,15 @@ ActiveRecord::Schema.define(version: 20131111230312) do
   create_table "trades", force: true do |t|
     t.integer  "exchange_id"
     t.integer  "currency_pair_id"
+    t.integer  "trade_id"
     t.datetime "datetime"
-    t.string   "type"
-    t.decimal  "price"
-    t.decimal  "amount"
-    t.datetime "created_at"
-    t.datetime "updated_at"
+    t.string   "trade_type"
+    t.decimal  "price",            precision: 12, scale: 5
+    t.decimal  "amount",           precision: 12, scale: 5
   end
 
   add_index "trades", ["currency_pair_id"], name: "index_trades_on_currency_pair_id"
   add_index "trades", ["exchange_id"], name: "index_trades_on_exchange_id"
+  add_index "trades", ["trade_id"], name: "index_trades_on_trade_id"
 
 end

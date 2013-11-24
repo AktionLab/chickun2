@@ -59,6 +59,8 @@ namespace :chickun do
   task :flap => :environment do
     puts "Chickun Arise!!!" 
 
+    @client = Client::Btce.new(BTCE_CONFIG['public_url'],BTCE_CONFIG['private_url'])
+    
     @key1    = BTCE_CONFIG['key1'];
     @secret1 = BTCE_CONFIG['secret1']; 
     @key2    = BTCE_CONFIG['key2'];
@@ -80,32 +82,23 @@ namespace :chickun do
     fee = 0.002
     start_usd = 2
     start_rur = 340
-    start_btc = 0.02
+    start_btc = 0.1
     start_btc_rur = 0.1
-    min_profit = -1.0
+    min_profit = 0.0
     time_to_stale = 3
-
     while true do
       usd = 2.0
       rur = 340
-      btc = 0.02
+      btc = 0.1
       ltc = 0.0
 
       start_data_time = Time.now.to_f
       
       begin
-        ltc_btc_req = Typhoeus::Request.new('https://btc-e.com/api/2/ltc_btc/ticker')
-        ltc_usd_req = Typhoeus::Request.new('https://btc-e.com/api/2/ltc_usd/ticker')
-        btc_usd_req = Typhoeus::Request.new('https://btc-e.com/api/2/btc_usd/ticker')
-        hydra = Typhoeus::Hydra.new
-        hydra.queue(ltc_btc_req)
-        hydra.queue(ltc_usd_req)
-        hydra.queue(btc_usd_req)
-        hydra.run
-
-        ltc_btc_res = JSON.parse(ltc_btc_req.response.body)['ticker']
-        ltc_usd_res = JSON.parse(ltc_usd_req.response.body)['ticker']
-        btc_usd_res = JSON.parse(btc_usd_req.response.body)['ticker']
+        res = @client.pub_api_request('ticker',[['btc','usd'],['ltc','btc'],['ltc','usd']]) 
+        ltc_btc_res = res["ltc_btc"]["ticker"]
+        ltc_usd_res = res["ltc_usd"]['ticker']
+        btc_usd_res = res["btc_usd"]['ticker']
       rescue Exception => e
         ErrorLog.info(e.inspect)
         puts e.inspect
@@ -149,6 +142,19 @@ namespace :chickun do
       # if profitable, TRADE!
       if profit > min_profit
         puts "Arise Chickun!!!"
+        puts profit
+        btc = @client.smallest_amount_available_in_btc('forward')
+        next if btc < 0.02
+        ltc            = (btc/ltc_per_btc_buy).round(8)
+        ltc_after_fees = (ltc - (ltc*fee).round(8))
+        usd            = (ltc_after_fees*ltc_per_usd_sell).round(8)
+        usd_after_fees = (usd - (usd*fee).round(8)).round(8)
+        btc            = (usd_after_fees/btc_per_usd_buy).round(8)
+        btc_after_fees = (btc - (btc*fee).round(8)).round(8)
+        @client.buy('btc_usd', btc, btc_per_usd_buy)       
+        @client.buy('ltc_btc', ltc, ltc_per_btc_buy)
+        @client.sell('ltc_usd', ltc_after_fees, ltc_per_usd_sell)
+        
         options = {
           "rate_usd_btc" => btc_per_usd_buy,
           "amount_btc_buy" => btc,
@@ -157,8 +163,8 @@ namespace :chickun do
           "rate_ltc_usd" => ltc_per_usd_sell,
           "amount_ltc_sell" => ltc_after_fees
         }
-        trade_btc_forward options
-        check_balance
+        #trade_btc_forward options
+        #check_balance
       end
  
       #-----------------------------------------
@@ -167,8 +173,9 @@ namespace :chickun do
 
       # reset
       usd = 2.0
+      btc = 0.1
+      start_btc = 0.1
       rur = 340
-      btc = 0.02
       ltc = 0.0
  
       # account for fees
@@ -186,6 +193,22 @@ namespace :chickun do
       # if profitable, TRADE!
       if profit > min_profit
         puts "Arise Chickun!!!"
+        
+        btc = @client.smallest_amount_available_in_btc('backward')
+        next if btc < 0.02
+        
+        usd            = (btc*btc_per_usd_sell).round(8)
+        usd_after_fees = (usd - (usd*fee).round(8)).round(8)
+        ltc            = (usd_after_fees/ltc_per_usd_buy).round(8)
+        ltc_after_fees = (ltc - (ltc*fee).round(8)).round(8)
+        btc2           = (ltc_after_fees*ltc_per_btc_sell).round(8)
+        btc_after_fees = (btc2 - (btc2*fee).round(8)).round(8)
+  
+        @client.buy('ltc_usd', ltc, ltc_per_usd_buy)       
+        @client.sell('ltc_btc', ltc_after_fees, ltc_per_btc_sell)
+        @client.sell('btc_usd', btc2, btc_per_usd_sell)
+
+
         options = {
           "rate_usd_ltc" => ltc_per_usd_buy,
           "amount_ltc_buy" => ltc,
@@ -195,7 +218,7 @@ namespace :chickun do
           "amount_btc_sell" => btc
         }
         #trade_btc_backward options
-        check_balance
+        #check_balance
       end
 
       if @trade_rur == true 
@@ -412,7 +435,7 @@ namespace :chickun do
   end
 
 def btce_query(method, options={})
-  uri = URI(BTCE_CONFIG['url'])
+  uri = URI(BTCE_CONFIG['private_url'])
   req = Net::HTTP::Post.new uri
   @nonce_val += 1
   req.set_form_data(options.merge :method => method, :nonce => (Time.now.to_i + @nonce_val))
@@ -447,7 +470,7 @@ end
 
 def check_balance
   options = {}
-  res = btce_query("getInfo",options)
+  res = @client.account_info 
   puts "USD funds: #{res["return"]["funds"]["usd"]}"
   puts "BTC funds: #{res["return"]["funds"]["btc"]}"
   puts "LTC funds: #{res["return"]["funds"]["ltc"]}"
@@ -464,7 +487,7 @@ end
 
 def build_trade_query(key, secret, nonce, options = {})
   #@nonce_val += 1
-  uri = URI(BTCE_CONFIG['url'])
+  uri = URI(BTCE_CONFIG['private_url'])
   req = Net::HTTP::Post.new uri
   req.set_form_data(options.merge :method => "Trade", :nonce => nonce)#(Time.now.to_i + @nonce_val))
   sign = OpenSSL::HMAC::hexdigest('sha512', secret, req.body) 

@@ -1,3 +1,7 @@
+Exchange.delete_all
+CurrencyPair.delete_all
+Trade.delete_all
+
 [
   { name: 'BTC-e', key: 'btce', website: 'https://btc-e.com' }
 ].each { |e| Exchange.create! e }

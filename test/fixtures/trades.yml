@@ -3,15 +3,17 @@
 one:
   exchange_id: 
   currency_pair_id: 
-  datetime: 2013-11-11 16:03:12
-  type: 
+  trade_id: 1
+  datetime: 2013-11-11 17:51:23
+  trade_type: MyString
   price: 9.99
   amount: 9.99
 
 two:
   exchange_id: 
   currency_pair_id: 
-  datetime: 2013-11-11 16:03:12
-  type: 
+  trade_id: 1
+  datetime: 2013-11-11 17:51:23
+  trade_type: MyString
   price: 9.99
   amount: 9.99

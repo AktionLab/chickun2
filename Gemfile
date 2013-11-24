@@ -12,4 +12,4 @@ gem 'httparty'
 gem 'typhoeus'
 gem 'hiredis'
 gem 'redis'
-
+gem 'cubism-rails'
