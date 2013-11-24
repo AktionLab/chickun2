@@ -13,3 +13,8 @@ gem 'typhoeus'
 gem 'hiredis'
 gem 'redis'
 gem 'cubism-rails'
+
+group :development do
+  gem 'capistrano'
+  gem 'rvm-capistrano'
+end

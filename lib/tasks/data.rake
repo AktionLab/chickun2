@@ -16,19 +16,24 @@ namespace :data do
     while true do
       pairs.each do |pair|
         data = JSON.parse(client.pair_trade_history(pair.key), symbolize_names: true)
-        puts data
+        new_trade_count = 0
         data.each do |trade|
-          Trade.create(
-            exchange:      exchange,
-            currency_pair: pair,
-            trade_id:      trade[:tid],
-            datetime:      Time.at(trade[:date]),
-            trade_type:    trade[:trade_type],
-            price:         trade[:price],
-            amount:        trade[:amount]
-          ) unless Trade.where(trade_id: trade[:tid]).exists?
+          if !Trade.where(trade_id: trade[:tid]).exists?
+            Trade.create(
+              exchange:      exchange,
+              currency_pair: pair,
+              trade_id:      trade[:tid],
+              datetime:      Time.at(trade[:date]),
+              trade_type:    trade[:trade_type],
+              price:         trade[:price],
+              amount:        trade[:amount]
+            )
+            new_trade_count += 1
+          end
         end
+        puts "#{pair.key}: #{new_trade_count} new trades since last poll"
       end 
+      puts "\n"
       sleep 10
     end
   end
