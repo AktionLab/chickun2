@@ -14,6 +14,7 @@ gem 'hiredis'
 gem 'redis'
 gem 'cubism-rails'
 gem 'unicorn'
+gem 'mysql2'
 
 group :development do
   gem 'capistrano'
