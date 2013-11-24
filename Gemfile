@@ -13,6 +13,7 @@ gem 'typhoeus'
 gem 'hiredis'
 gem 'redis'
 gem 'cubism-rails'
+gem 'unicorn'
 
 group :development do
   gem 'capistrano'
