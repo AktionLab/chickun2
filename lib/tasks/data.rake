@@ -15,29 +15,20 @@ namespace :data do
     pairs = exchange.currency_pairs
     while true do
       pairs.each do |pair|
-        begin
-          data = JSON.parse(client.pair_trade_history(pair.key), symbolize_names: true)
-        rescue RuntimeError => e
-          puts e.message
-          next
-        end
-        new_trade_count = 0
-        data.each do |trade|
-          if !Trade.where(trade_id: trade[:tid]).exists?
-            Trade.create(
-              exchange:      exchange,
-              currency_pair: pair,
-              trade_id:      trade[:tid],
-              datetime:      Time.at(trade[:date]),
-              trade_type:    trade[:trade_type],
-              price:         trade[:price],
-              amount:        trade[:amount]
-            )
-            new_trade_count += 1
-          end
+        data = client.pair_trade_history(pair.key)
+        new_trades = data.take_while { |trade| !Trade.exists?(trade_id: trade[:tid]) }
+        new_trades.each do |trade|
+          Trade.create(
+            exchange:      exchange,
+            currency_pair: pair,
+            trade_id:      trade[:tid],
+            datetime:      Time.at(trade[:date]),
+            trade_type:    trade[:trade_type],
+            price:         trade[:price],
+            amount:        trade[:amount]
+          )
         end
       end 
-      puts "\n"
       sleep 10
     end
   end
