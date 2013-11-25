@@ -6,15 +6,13 @@ module Client
     PARTIALLY_FILLED = 'partially fufilled'
     FILLED = 'fulfilled'
 
-    def initialize(public_url, private_url)
+    def initialize
       @redis = Redis.new
-      @private_url = private_url
-      @public_url = public_url
       @redis.set("btce_nonce", Time.now.to_i + 3000000).to_i
     end
 
     def request(pair, operation)
-      uri = URI.parse "#{@public_url}/#{pair}/#{operation}"
+      uri = URI.parse "#{BTCE_CONFIG['public_url']}/#{pair}/#{operation}"
       http = Net::HTTP.new uri.host, uri.port
       http.use_ssl = true
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE
@@ -36,7 +34,7 @@ module Client
       hydra = Typhoeus::Hydra.new
 
       pairs.each do |pair|
-        requests << Typhoeus::Request.new("#{@public_url}/#{pair.join('_')}/#{type}")
+        requests << Typhoeus::Request.new("#{BTCE_CONFIG['public_url']}/#{pair.join('_')}/#{type}")
         hydra.queue(requests.last)
       end
       hydra.run
@@ -50,7 +48,7 @@ module Client
     def priv_api_request(type)
       requests  = []
       hydra = Typhoeus::Hydra.new
-      requests << Typhoeus::Request.new("#{@private_url}/#{pair.join('_')}/#{type}") 
+      requests << Typhoeus::Request.new("#{BTCE_CONFIG['private_url']}/#{pair.join('_')}/#{type}") 
     end
 
     def buy(pair, amount, rate)
@@ -63,7 +61,6 @@ module Client
 
     def trade(options)
       puts options.inspect
-      return
       uri = URI(BTCE_CONFIG['private_url'])
       req = Net::HTTP::Post.new uri
       @nonce = @redis.get("btce_nonce").to_i
@@ -130,7 +127,7 @@ module Client
     end
  
     def account_info
-      uri = URI(@private_url)
+      uri = URI(BTCE_CONFIG['private_url'])
       req = Net::HTTP::Post.new uri
       @nonce = @redis.get("btce_nonce").to_i
       @redis.set("btce_nonce", (@nonce + 1).to_i)
@@ -149,7 +146,7 @@ module Client
     end
 
     def open_orders
-      uri = URI(@private_url)
+      uri = URI(BTCE_CONFIG['private_url'])
       req = Net::HTTP::Post.new uri
       @nonce = Time.now.to_i
       req.set_form_data({ method: 'ActiveOrders', nonce: @nonce})
