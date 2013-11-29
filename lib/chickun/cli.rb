@@ -1,7 +1,6 @@
 require 'thor'
 require 'client/btce'
 require 'active_support/inflector'
-require 'colorize'
 
 module Chickun
   class Cli < Thor
