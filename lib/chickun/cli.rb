@@ -1,6 +1,7 @@
 require 'thor'
 require 'client/btce'
 require 'active_support/inflector'
+require 'bigdecimal'
 
 module Chickun
   class Cli < Thor
@@ -26,13 +27,30 @@ module Chickun
         console.clear
         console.position_cursor(1,1)
 
-        trades.first(console.rows - 1).each do |trade|
+        compress_trades(trades).first(console.rows - 1).each do |trade|
           time = Time.at(trade[:date]).strftime("%H:%M:%S")
 
           console.set_style(trade[:trade_type] == 'bid' ? "32m" : "31m")
-          console.p("#{time}  #{trade[:amount].to_s.rjust(10, ' ')}  #{trade[:price]}\n")
+          console.p("#{time}  #{trade[:amount].to_f.to_s.rjust(10, ' ')}  #{trade[:price]}\n")
         end
       end
+    end
+
+  private
+
+    def compress_trades(trades)
+      trades.each {|trade| trade[:amount] = BigDecimal.new(trade[:amount].to_s)}
+
+      compressed_trades = [trades.shift]
+
+      trades.each do |trade|
+        if trade[:trade_type] == compressed_trades.last[:trade_type] && trade[:price] == compressed_trades.last[:price]
+          compressed_trades.last[:amount] += trade[:amount]
+        else
+          compressed_trades << trade
+        end
+      end
+      compressed_trades
     end
   end
 end
