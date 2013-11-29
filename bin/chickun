@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+$: << File.expand_path(File.join(__FILE__, '..', '..', 'lib'))
+
+require 'chickun/cli'
+
+Chickun::Cli.start(ARGV)

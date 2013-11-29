@@ -1,3 +1,9 @@
+require 'redis'
+require 'uri'
+require 'net/http'
+require 'openssl'
+require 'json'
+
 module Client
   class Btce
     BUY  = 'buy'
@@ -6,13 +12,16 @@ module Client
     PARTIALLY_FILLED = 'partially fufilled'
     FILLED = 'fulfilled'
 
+    PUBLIC_URL  = 'https://btc-e.com/api/2'
+    PRIVATE_URL = 'https://btc-e.com/tapi'
+
     def initialize
       @redis = Redis.new
       @redis.set("btce_nonce", Time.now.to_i + 3000000).to_i
     end
 
     def request(pair, operation)
-      uri = URI.parse "#{BTCE_CONFIG['public_url']}/#{pair}/#{operation}"
+      uri = URI.parse "#{PUBLIC_URL}/#{pair}/#{operation}"
       http = Net::HTTP.new uri.host, uri.port
       http.use_ssl = true
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE
@@ -34,7 +43,7 @@ module Client
       hydra = Typhoeus::Hydra.new
 
       pairs.each do |pair|
-        requests << Typhoeus::Request.new("#{BTCE_CONFIG['public_url']}/#{pair.join('_')}/#{type}")
+        requests << Typhoeus::Request.new("#{PUBLIC_URL}/#{pair.join('_')}/#{type}")
         hydra.queue(requests.last)
       end
       hydra.run
@@ -48,7 +57,7 @@ module Client
     def priv_api_request(type)
       requests  = []
       hydra = Typhoeus::Hydra.new
-      requests << Typhoeus::Request.new("#{BTCE_CONFIG['private_url']}/#{pair.join('_')}/#{type}") 
+      requests << Typhoeus::Request.new("#{PRIVATE_URL}/#{pair.join('_')}/#{type}") 
     end
 
     def buy(pair, amount, rate)
@@ -61,7 +70,7 @@ module Client
 
     def trade(options)
       puts options.inspect
-      uri = URI(BTCE_CONFIG['private_url'])
+      uri = URI(PRIVATE_URL)
       req = Net::HTTP::Post.new uri
       @nonce = @redis.get("btce_nonce").to_i
       @redis.set("btce_nonce", (@nonce + 1).to_i)
@@ -127,7 +136,7 @@ module Client
     end
  
     def account_info
-      uri = URI(BTCE_CONFIG['private_url'])
+      uri = URI(PRIVATE_URL)
       req = Net::HTTP::Post.new uri
       @nonce = @redis.get("btce_nonce").to_i
       @redis.set("btce_nonce", (@nonce + 1).to_i)
@@ -146,7 +155,7 @@ module Client
     end
 
     def open_orders
-      uri = URI(BTCE_CONFIG['private_url'])
+      uri = URI(PUBLIC_URL)
       req = Net::HTTP::Post.new uri
       @nonce = Time.now.to_i
       req.set_form_data({ method: 'ActiveOrders', nonce: @nonce})
