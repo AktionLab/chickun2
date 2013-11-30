@@ -13,7 +13,7 @@ module Chickun
     def sell(exchange, pair, amount, rate)
     end
 
-    desc "trades EXCHANGE PAIR [AMOUNT]", "show current trade history"
+    desc "trades EXCHANGE PAIR", "display trade history"
     def trades(exchange, pair)
       console = Console.new
 
@@ -32,6 +32,27 @@ module Chickun
 
           console.set_style(trade[:trade_type] == 'bid' ? "32m" : "31m")
           console.p("#{time}  #{trade[:amount].to_f.to_s.rjust(10, ' ')}  #{trade[:price]}\n")
+        end
+      end
+    end
+
+    desc "depth EXCHANGE PAIR", "display order depth"
+    def depth(exchange, pair)
+      console = Console.new
+      client  = Client::const_get(exchange.classify).new
+      trap('INT') { console.reset_style; exit }
+
+      while true
+        orders = client.pair_depth(pair)
+
+        console.clear
+        console.position_cursor(1,1)
+
+        (console.rows - 1).times do |n|
+          console.set_style("32m")
+          console.p("#{orders[:asks][n][0].to_s.ljust(10, ' ')} #{orders[:asks][n][1]}".ljust(30, ' '))
+          console.set_style("31m")
+          console.p("#{orders[:bids][n][0].to_s.ljust(10, ' ')} #{orders[:bids][n][1]}\n")
         end
       end
     end
@@ -61,6 +82,7 @@ class Console
   def initialize
     @rows = `tput lines`.to_i
     @cols = `tput cols`.to_i
+    @styles = []
   end
 
   def reset_style

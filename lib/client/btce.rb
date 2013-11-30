@@ -38,6 +38,10 @@ module Client
       request(pair, 'trades')
     end
 
+    def pair_depth(pair)
+      request(pair, 'depth')
+    end
+
     def pub_api_request(type, pairs)
       requests  = []
       hydra = Typhoeus::Hydra.new
