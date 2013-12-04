@@ -3,6 +3,7 @@ require 'uri'
 require 'net/http'
 require 'openssl'
 require 'json'
+require 'data_struct/depth'
 
 module Client
   class Btce
@@ -39,7 +40,8 @@ module Client
     end
 
     def pair_depth(pair)
-      request(pair, 'depth')
+      depth = request(pair, 'depth')
+      DataStruct::Depth.new(depth[:bids], depth[:asks])
     end
 
     def pub_api_request(type, pairs)

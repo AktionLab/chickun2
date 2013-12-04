@@ -2,6 +2,8 @@ require 'thor'
 require 'client/btce'
 require 'active_support/inflector'
 require 'bigdecimal'
+require 'trades'
+require 'depth'
 
 module Chickun
   class Cli < Thor
@@ -16,44 +18,62 @@ module Chickun
     desc "trades EXCHANGE PAIR", "display trade history"
     def trades(exchange, pair)
       console = Console.new
-
       client = Client::const_get(exchange.classify).new
-
       trap('INT') { console.reset_style; exit }
 
-      while true
-        trades = client.pair_trade_history(pair)
+      trades = Trades.new(console, client, pair, 1, 1, console.rows - 1)
+      trades.run
 
+      console.clear
+      while true
         console.clear
         console.position_cursor(1,1)
-
-        compress_trades(trades).first(console.rows - 1).each do |trade|
-          time = Time.at(trade[:date]).strftime("%H:%M:%S")
-
-          console.set_style(trade[:trade_type] == 'bid' ? "32m" : "31m")
-          console.p("#{time}  #{trade[:amount].to_f.to_s.rjust(10, ' ')}  #{trade[:price]}\n")
-        end
+        trades.draw
+        sleep 1
       end
     end
 
     desc "depth EXCHANGE PAIR", "display order depth"
+    option :filter_depth
     def depth(exchange, pair)
+      opts = options.dup
       console = Console.new
       client  = Client::const_get(exchange.classify).new
       trap('INT') { console.reset_style; exit }
 
+      depth = Depth.new(console, client, pair, 1, 1, console.rows - 1, opts)
+      depth.run
+
       while true
-        orders = client.pair_depth(pair)
-
         console.clear
-        console.position_cursor(1,1)
+        depth.draw
+        sleep 1
+      end
+    end
 
-        (console.rows - 1).times do |n|
-          console.set_style("32m")
-          console.p("#{orders[:asks][n][0].to_s.ljust(10, ' ')} #{orders[:asks][n][1]}".ljust(30, ' '))
-          console.set_style("31m")
-          console.p("#{orders[:bids][n][0].to_s.ljust(10, ' ')} #{orders[:bids][n][1]}\n")
-        end
+    desc "console EXCHANGE PAIR", "trading console"
+    option :filter_depth
+    def console(exchange, pair)
+      opts = options.dup
+      console = Console.new
+      client  = Client::const_get(exchange.classify).new
+      trap('INT') do
+        console.reset_style
+        console.position_cursor(1,console.rows)
+        exit
+      end
+
+      depth = Depth.new(console, client, pair, 40, 1, console.rows - 1, opts)
+      trades = Trades.new(console, client, pair, 1, 1, console.rows - 1)
+      depth.run
+      trades.run
+
+      console.clear
+      while true
+        console.clear
+        trades.draw
+        depth.draw
+        sleep 0.5
       end
     end
 
