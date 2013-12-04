@@ -4,6 +4,7 @@ require 'active_support/inflector'
 require 'bigdecimal'
 require 'trades'
 require 'depth'
+require 'io/console'
 
 module Chickun
   class Cli < Thor
@@ -57,23 +58,45 @@ module Chickun
       opts = options.dup
       console = Console.new
       client  = Client::const_get(exchange.classify).new
+      console_lock = Mutex.new
+
       trap('INT') do
         console.reset_style
         console.position_cursor(1,console.rows)
         exit
       end
 
-      depth = Depth.new(console, client, pair, 40, 1, console.rows - 1, opts)
-      trades = Trades.new(console, client, pair, 1, 1, console.rows - 1)
+      depth = Depth.new(console, client, pair, 40, 1, console.rows - 2, opts)
+      trades = Trades.new(console, client, pair, 1, 1, console.rows - 2)
       depth.run
       trades.run
 
       console.clear
+
+      running = true
+
+      Thread.new do
+        while true
+          console_lock.synchronize do
+            console.clear
+            trades.draw
+            depth.draw
+          end
+          sleep 0.5
+        end
+      end
+
       while true
-        console.clear
-        trades.draw
-        depth.draw
-        sleep 0.5
+        char = STDIN.getch
+        if char == ?\e
+          console_lock.synchronize do
+            console.position_cursor(1, :bottom)
+            console.p '$ '
+            command = STDIN.gets
+            puts "Running #{command}"
+            sleep 1
+          end
+        end
       end
     end
 
