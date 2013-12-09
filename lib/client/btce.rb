@@ -29,11 +29,12 @@ module Client
       request = Net::HTTP::Get.new uri.request_uri
       response = http.request request
       begin
-        JSON.parse(response.body, symbolize_names: true)
+        ret = JSON.parse(response.body, symbolize_names: true)
       rescue
         # handle error
-        false
+        return false
       end
+      ret
     end
 
     def pair_ticker(pair)
