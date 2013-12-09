@@ -28,7 +28,12 @@ module Client
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE
       request = Net::HTTP::Get.new uri.request_uri
       response = http.request request
-      JSON.parse(response.body, symbolize_names: true)
+      begin
+        JSON.parse(response.body, symbolize_names: true)
+      rescue
+        # handle error
+        false
+      end
     end
 
     def pair_ticker(pair)

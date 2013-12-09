@@ -16,6 +16,7 @@ namespace :data do
     while true do
       pairs.each do |pair|
         data = client.pair_trade_history(pair.key)
+        next if !data
         new_trades = data.take_while { |trade| !Trade.exists?(trade_id: trade[:tid]) }
         new_trades.each do |trade|
           Trade.create(
