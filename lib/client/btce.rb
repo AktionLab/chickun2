@@ -1,3 +1,10 @@
+require 'redis'
+require 'uri'
+require 'net/http'
+require 'openssl'
+require 'json'
+require 'data_struct/depth'
+
 module Client
   class Btce
     BUY  = 'buy'
@@ -6,21 +13,27 @@ module Client
     PARTIALLY_FILLED = 'partially fufilled'
     FILLED = 'fulfilled'
 
-    def initialize(public_url, private_url)
+    PUBLIC_URL  = 'https://btc-e.com/api/2'
+    PRIVATE_URL = 'https://btc-e.com/tapi'
+
+    def initialize
       @redis = Redis.new
-      @private_url = private_url
-      @public_url = public_url
       @redis.set("btce_nonce", Time.now.to_i + 3000000).to_i
     end
 
     def request(pair, operation)
-      uri = URI.parse "#{@public_url}/#{pair}/#{operation}"
+      uri = URI.parse "#{PUBLIC_URL}/#{pair}/#{operation}"
       http = Net::HTTP.new uri.host, uri.port
       http.use_ssl = true
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE
       request = Net::HTTP::Get.new uri.request_uri
       response = http.request request
-      JSON.parse(response.body, symbolize_names: true)
+      begin
+        JSON.parse(response.body, symbolize_names: true)
+      rescue
+        # handle error
+        false
+      end
     end
 
     def pair_ticker(pair)
@@ -31,12 +44,17 @@ module Client
       request(pair, 'trades')
     end
 
+    def pair_depth(pair)
+      depth = request(pair, 'depth')
+      DataStruct::Depth.new(depth[:bids], depth[:asks])
+    end
+
     def pub_api_request(type, pairs)
       requests  = []
       hydra = Typhoeus::Hydra.new
 
       pairs.each do |pair|
-        requests << Typhoeus::Request.new("#{@public_url}/#{pair.join('_')}/#{type}")
+        requests << Typhoeus::Request.new("#{PUBLIC_URL}/#{pair.join('_')}/#{type}")
         hydra.queue(requests.last)
       end
       hydra.run
@@ -50,7 +68,7 @@ module Client
     def priv_api_request(type)
       requests  = []
       hydra = Typhoeus::Hydra.new
-      requests << Typhoeus::Request.new("#{@private_url}/#{pair.join('_')}/#{type}") 
+      requests << Typhoeus::Request.new("#{PRIVATE_URL}/#{pair.join('_')}/#{type}") 
     end
 
     def buy(pair, amount, rate)
@@ -63,8 +81,7 @@ module Client
 
     def trade(options)
       puts options.inspect
-      return
-      uri = URI(BTCE_CONFIG['private_url'])
+      uri = URI(PRIVATE_URL)
       req = Net::HTTP::Post.new uri
       @nonce = @redis.get("btce_nonce").to_i
       @redis.set("btce_nonce", (@nonce + 1).to_i)
@@ -130,7 +147,7 @@ module Client
     end
  
     def account_info
-      uri = URI(@private_url)
+      uri = URI(PRIVATE_URL)
       req = Net::HTTP::Post.new uri
       @nonce = @redis.get("btce_nonce").to_i
       @redis.set("btce_nonce", (@nonce + 1).to_i)
@@ -149,7 +166,7 @@ module Client
     end
 
     def open_orders
-      uri = URI(@private_url)
+      uri = URI(PUBLIC_URL)
       req = Net::HTTP::Post.new uri
       @nonce = Time.now.to_i
       req.set_form_data({ method: 'ActiveOrders', nonce: @nonce})
