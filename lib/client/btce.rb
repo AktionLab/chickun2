@@ -24,10 +24,17 @@ module Client
     def request(pair, operation)
       uri = URI.parse "#{PUBLIC_URL}/#{pair}/#{operation}"
       http = Net::HTTP.new uri.host, uri.port
+      http.read_timeout = 1
       http.use_ssl = true
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE
       request = Net::HTTP::Get.new uri.request_uri
-      response = http.request request
+      
+      begin
+        response = http.request request
+      rescue
+        return false
+      end 
+
       begin
         ret = JSON.parse(response.body, symbolize_names: true)
       rescue
