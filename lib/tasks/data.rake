@@ -19,15 +19,19 @@ namespace :data do
         next if !data
         new_trades = data.take_while { |trade| !Trade.exists?(trade_id: trade[:tid]) }
         new_trades.each do |trade|
-          Trade.create(
-            exchange:      exchange,
-            currency_pair: pair,
-            trade_id:      trade[:tid],
-            datetime:      Time.at(trade[:date]),
-            trade_type:    trade[:trade_type],
-            price:         trade[:price],
-            amount:        trade[:amount]
-          )
+          begin
+            Trade.create!(
+              exchange:      exchange,
+              currency_pair: pair,
+              trade_id:      trade[:tid],
+              datetime:      Time.at(trade[:date]),
+              trade_type:    trade[:trade_type],
+              price:         trade[:price],
+              amount:        trade[:amount]
+            )
+          rescue
+            # do nothing
+          end
         end
       end 
       sleep 10
